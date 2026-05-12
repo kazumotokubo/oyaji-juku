@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>日元の元素ラボ</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0a1226;color:#e8f0ff;font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;font-weight:700}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#0a1226 0%,#11214a 60%,#0a1226 100%)}
+
+  /* ===== HUD ===== */
+  .hud{display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);border-bottom:2px solid rgba(255,255,255,0.06);flex-wrap:wrap;min-height:64px}
+  .hud .title{font-size:18px;color:#9fffd9;letter-spacing:1px}
+  .hud .prompt{flex:1;text-align:center;font-size:24px;color:#fff;line-height:1.3}
+  .hud .prompt .target{display:inline-block;padding:6px 16px;border-radius:12px;background:linear-gradient(135deg,#9fffd9,#5fc4ff);color:#0a1226;box-shadow:0 4px 12px rgba(120,255,200,0.5);margin:0 6px;font-size:30px}
+  .hud .prompt .target.metal{background:linear-gradient(135deg,#ffd87a,#ff8a3d);color:#1a1133}
+  .hud .prompt .target.nonmetal{background:linear-gradient(135deg,#9fffd9,#5fc4ff)}
+  .hud .stat{display:flex;flex-direction:column;align-items:center;min-width:72px;padding:4px 8px;background:rgba(255,255,255,0.06);border-radius:10px}
+  .hud .stat .label{font-size:11px;color:#9fc1ff;opacity:0.9}
+  .hud .stat .value{font-size:20px;color:#fff;font-variant-numeric:tabular-nums}
+  .hud .stat.streak .value{color:#ffd64d}
+  .hud .stat.timer .value{color:#9fffd9}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#5fc4ff,#3a7ed1);color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.3);min-height:48px;font-family:inherit}
+  .btn:active{transform:translateY(1px) scale(0.98)}
+  .btn.ghost{background:rgba(255,255,255,0.1)}
+  .btn.green{background:linear-gradient(135deg,#3ed47d,#1ea660)}
+
+  /* ===== STAGE ===== */
+  #stage{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+  #content{flex:1;display:flex;align-items:center;justify-content:center;position:relative;padding:14px}
+
+  /* ===== TYPING PANEL ===== */
+  .typing-panel{display:none;flex-direction:column;align-items:center;gap:24px;width:100%;max-width:760px}
+  .typing-panel.on{display:flex}
+  .symbol-big{font-size:140px;font-weight:900;color:#fff;text-shadow:0 4px 24px rgba(120,255,200,0.5);background:linear-gradient(135deg,#11214a,#1c356b);border-radius:24px;padding:20px 50px;border:3px solid #5fc4ff;display:inline-flex;align-items:center;justify-content:center;min-width:240px;line-height:1}
+  .symbol-big.metal{border-color:#ffd87a;text-shadow:0 4px 24px rgba(255,200,80,0.6)}
+  .atomic-no-badge{font-size:18px;color:#9fc1ff;background:rgba(255,255,255,0.08);border-radius:10px;padding:6px 14px;margin-bottom:6px;letter-spacing:1px}
+  .symbol-big-wrap{display:flex;flex-direction:column;align-items:center}
+  .typing-input{display:flex;gap:10px;align-items:center}
+  .typing-input input{font-size:28px;padding:14px 18px;border-radius:14px;border:3px solid #4d6dff;background:#fff;color:#000;width:320px;font-family:inherit;font-weight:700;outline:none;transition:border-color 0.15s}
+  .typing-input input:focus{border-color:#9fffd9}
+  .typing-input input.wrong{border-color:#ff5a73;animation:shake 0.4s}
+  .typing-input input.correct{border-color:#3ed47d;background:#dffce8}
+
+  /* ===== MATCH (multiple choice) ===== */
+  .match-panel{display:none;flex-direction:column;align-items:center;gap:24px;width:100%;max-width:760px}
+  .match-panel.on{display:flex}
+  .match-q{font-size:48px;font-weight:900;color:#fff;text-shadow:0 4px 24px rgba(120,255,200,0.5);background:linear-gradient(135deg,#11214a,#1c356b);border-radius:20px;padding:18px 36px;border:3px solid #9fffd9;text-align:center;min-width:280px}
+  .match-options{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:100%}
+  .match-opt{padding:18px 22px;border-radius:14px;background:linear-gradient(135deg,#1c2c5e,#243a7a);border:2px solid rgba(255,255,255,0.12);font-size:22px;color:#fff;cursor:pointer;text-align:center;transition:transform 0.1s,border-color 0.1s,background 0.15s;min-height:74px;display:flex;align-items:center;justify-content:center}
+  .match-opt:active{transform:scale(0.97)}
+  .match-opt.correct{background:#3ed47d !important;color:#0a3422;border-color:#1a6f3a}
+  .match-opt.wrong{background:#ff5a73 !important;color:#fff;border-color:#a82339;animation:shake 0.4s}
+
+  /* ===== FORMULA BUILDER ===== */
+  .builder-panel{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;height:100%;justify-content:flex-start;padding-top:18px}
+  .builder-panel.on{display:flex}
+  .builder-q{font-size:36px;font-weight:900;color:#fff;text-shadow:0 4px 16px rgba(120,255,200,0.4);background:linear-gradient(135deg,#11214a,#1c356b);border-radius:18px;padding:14px 30px;border:2px solid #9fffd9;text-align:center}
+  .builder-q small{display:block;font-size:14px;color:#9fc1ff;margin-top:4px;font-weight:500}
+  .builder-display{font-size:54px;font-weight:900;color:#9fffd9;background:#fff;color:#000;border-radius:16px;padding:16px 30px;min-width:300px;min-height:90px;text-align:center;border:4px solid #4d6dff;letter-spacing:2px;font-family:"Hiragino Mincho ProN",Georgia,serif;display:flex;align-items:center;justify-content:center;font-variant-numeric:normal}
+  .builder-display.empty{color:#aaa;font-size:24px;font-weight:600}
+  .builder-display.correct{background:#dffce8;border-color:#3ed47d}
+  .builder-display.wrong{background:#ffe5ea;border-color:#ff5a73;animation:shake 0.4s}
+  .builder-display .sub{font-size:0.75em;vertical-align:sub}
+  .builder-kbd{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;width:100%;max-width:880px}
+  .builder-kbd .kbd-btn{padding:14px 6px;border-radius:10px;background:linear-gradient(135deg,#243a7a,#1c2c5e);color:#fff;font-size:18px;font-weight:700;text-align:center;cursor:pointer;border:2px solid rgba(255,255,255,0.1);transition:transform 0.08s,background 0.1s;min-height:56px;display:flex;align-items:center;justify-content:center;font-family:inherit}
+  .builder-kbd .kbd-btn:active{transform:scale(0.95);background:linear-gradient(135deg,#4d6dff,#3a4ed1)}
+  .builder-kbd .kbd-btn.digit{background:linear-gradient(135deg,#2a3a6b,#16224a);color:#9fffd9;font-size:22px}
+  .builder-kbd .kbd-btn.paren{background:linear-gradient(135deg,#5a3a7a,#3a1c5e);color:#ffd64d;font-size:22px}
+  .builder-kbd .kbd-btn.bs{background:linear-gradient(135deg,#7a3a4a,#5e1c2c);color:#fff;grid-column:span 2;font-size:16px}
+  .builder-kbd .kbd-btn.submit{background:linear-gradient(135deg,#3ed47d,#1ea660);color:#0a3422;grid-column:span 2;font-size:18px}
+  .builder-kbd .kbd-btn.clear{background:linear-gradient(135deg,#666,#444)}
+  .builder-kbd .kbd-btn.disabled{opacity:0.25;pointer-events:none}
+
+  /* ===== PERIODIC TABLE ===== */
+  .ptable-panel{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;height:100%;padding:12px}
+  .ptable-panel.on{display:flex}
+  .ptable-q{font-size:30px;font-weight:900;color:#fff;text-shadow:0 4px 16px rgba(120,255,200,0.4);background:linear-gradient(135deg,#11214a,#1c356b);border-radius:14px;padding:10px 24px;border:2px solid #9fffd9}
+  .ptable-q .target{padding:6px 14px;border-radius:10px;background:linear-gradient(135deg,#ffd87a,#ff8a3d);color:#1a1133;margin:0 6px;font-size:36px;display:inline-block}
+  .ptable-wrap{flex:1;display:flex;align-items:center;justify-content:center;width:100%}
+  .ptable{display:grid;grid-template-columns:repeat(18,1fr);gap:2px;width:100%;max-width:1200px}
+  .pcell{aspect-ratio:1/1;background:#101a36;border:1px solid rgba(255,255,255,0.04);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;font-size:11px;color:#5a7299;transition:background 0.15s,border 0.15s,transform 0.1s}
+  .pcell.has-el{cursor:pointer;color:#dbe7ff;border:1px solid rgba(255,255,255,0.18)}
+  .pcell.has-el:active,.pcell.has-el.pressing{transform:scale(0.92);background:#3a5096}
+  .pcell .sym{font-size:18px;font-weight:900;line-height:1}
+  .pcell .num{position:absolute;top:1px;left:2px;font-size:8px;opacity:0.7}
+  .pcell.alkali{background:#5b1a1a}.pcell.alkali.has-el{background:#a83838}
+  .pcell.alkaline{background:#5b3a1a}.pcell.alkaline.has-el{background:#b07333}
+  .pcell.transition{background:#2a3a5b}.pcell.transition.has-el{background:#4a6cb0}
+  .pcell.post-transition{background:#2a4a4a}.pcell.post-transition.has-el{background:#4a8a8a}
+  .pcell.metalloid{background:#3a5b2a}.pcell.metalloid.has-el{background:#7eaa4a}
+  .pcell.nonmetal{background:#2a5b4a}.pcell.nonmetal.has-el{background:#3ec4a0}
+  .pcell.halogen{background:#5b4a2a}.pcell.halogen.has-el{background:#d4b347}
+  .pcell.noble{background:#4a2a5b}.pcell.noble.has-el{background:#9a47d4}
+  .pcell.lanthanide{background:#3a2a5b}.pcell.lanthanide.has-el{background:#7e5fc4}
+  .pcell.actinide{background:#2a2a5b}.pcell.actinide.has-el{background:#5fa0c4}
+  .pcell.unknown{background:#2a2a3a}.pcell.unknown.has-el{background:#666}
+  .pcell.in-scope{box-shadow:inset 0 0 0 2px #ffd64d}
+  .pcell.target-highlight{animation:targetPulse 1.4s ease-in-out infinite}
+  .pcell.correct{background:#3ed47d !important;color:#0a3422 !important}
+  .pcell.wrong{background:#ff5a73 !important;color:#fff !important;animation:shake 0.4s}
+  .pcell.solved{box-shadow:inset 0 0 0 2px #3ed47d}
+  @keyframes targetPulse{0%,100%{filter:drop-shadow(0 0 4px rgba(255,200,80,0.7))}50%{filter:drop-shadow(0 0 14px rgba(255,200,80,1))}}
+  .ptable-spacer{grid-column:1/-1;height:14px;background:transparent;border:none}
+  .ptable-label{font-size:10px;color:#888;display:flex;align-items:center;justify-content:center;background:transparent !important;border:none !important}
+  .ptable-label.right{grid-column:span 1}
+  .ptable-mode-toggle{display:flex;gap:10px;justify-content:center;margin-top:6px}
+  .toggle-mode{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,0.1);font-size:13px;cursor:pointer;color:#9fc1ff;transition:background 0.1s}
+  .toggle-mode.on{background:#ffd64d;color:#1a1133}
+  .toggle-mode.locked{opacity:0.5;background:rgba(255,255,255,0.05);position:relative}
+  .toggle-mode.locked::after{content:'🔒';position:absolute;top:-4px;right:-4px;font-size:14px}
+
+  /* ===== FLOATS ===== */
+  .float-fx{position:absolute;pointer-events:none;font-size:42px;font-weight:900;text-shadow:0 4px 12px rgba(0,0,0,0.6);animation:floatUp 0.9s ease-out forwards;z-index:30}
+  .float-fx.good{color:#3ed47d}
+  .float-fx.bad{color:#ff8aa0}
+  @keyframes floatUp{0%{transform:translate(-50%,0) scale(0.8);opacity:0}20%{transform:translate(-50%,-20px) scale(1.1);opacity:1}100%{transform:translate(-50%,-100px) scale(1);opacity:0}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+  /* ===== OVERLAY / MENU ===== */
+  .overlay{position:absolute;inset:0;background:rgba(7,15,38,0.95);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;z-index:50;animation:fadeIn 0.25s;overflow-y:auto}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .overlay h1{font-size:42px;background:linear-gradient(135deg,#9fffd9,#5fc4ff,#ffd64d);background-clip:text;-webkit-background-clip:text;color:transparent;text-align:center;margin-bottom:6px;letter-spacing:2px}
+  .overlay h2{font-size:28px;color:#fff;margin-bottom:14px;text-align:center}
+  .overlay p{font-size:16px;color:#9fc1ff;text-align:center;margin-bottom:14px;line-height:1.5}
+  .menu-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:100%;max-width:960px}
+  .menu-card{position:relative;background:linear-gradient(135deg,#1c356b,#243a7a);border-radius:18px;padding:18px;cursor:pointer;border:2px solid rgba(255,255,255,0.08);transition:transform 0.15s,border-color 0.15s;min-height:108px;display:flex;flex-direction:column;justify-content:space-between}
+  .menu-card:active{transform:scale(0.97);border-color:#ffd64d}
+  .menu-card .ico{font-size:32px;margin-bottom:4px}
+  .menu-card .name{font-size:20px;color:#fff;margin-bottom:3px}
+  .menu-card .desc{font-size:13px;color:#9fc1ff;line-height:1.4}
+  .menu-card .meta{font-size:13px;color:#ffd64d;margin-top:4px}
+  .menu-card.cleared{border-color:#3ed47d}
+  .menu-card.cleared::after{content:"★クリア";position:absolute;top:8px;right:12px;color:#3ed47d;font-size:13px}
+  .menu-section-title{font-size:14px;color:#9fffd9;letter-spacing:2px;margin:18px 0 8px;align-self:flex-start;max-width:960px;width:100%;text-align:left;padding-left:6px}
+
+  .result-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:640px;margin-bottom:18px}
+  .stat-box{background:rgba(255,255,255,0.08);border-radius:14px;padding:14px;text-align:center}
+  .stat-box .label{font-size:12px;color:#9fc1ff;margin-bottom:4px}
+  .stat-box .value{font-size:30px;color:#fff;font-variant-numeric:tabular-nums}
+  .stat-box .value.gold{color:#ffd64d}
+  .new-best{display:inline-block;margin-top:6px;padding:4px 12px;border-radius:8px;background:#ffd64d;color:#1a1133;font-size:14px;animation:pulse 0.8s infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+  .stars{font-size:48px;letter-spacing:6px;color:#ffd64d;text-align:center;margin:6px 0 14px}
+  .stars .dim{opacity:0.25}
+  .btn-row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+
+  .toast{position:absolute;top:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 18px;border-radius:12px;font-size:16px;z-index:40;animation:toastIn 0.3s,toastOut 0.3s 1.7s forwards;pointer-events:none}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
+  @keyframes toastOut{to{opacity:0;transform:translate(-50%,-10px)}}
+
+  .settings{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+  .toggle{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;font-size:14px}
+  .toggle .dot{width:12px;height:12px;border-radius:50%;background:#3ed47d}
+  .toggle.off .dot{background:#666}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud" id="hud">
+    <div class="title">⚗️ 日元の元素ラボ</div>
+    <div class="prompt" id="prompt">メニューからモードを選んでね</div>
+    <div class="stat timer"><div class="label">タイム</div><div class="value" id="timerV">0.0</div></div>
+    <div class="stat"><div class="label">スコア</div><div class="value" id="scoreV">0</div></div>
+    <div class="stat streak"><div class="label">コンボ</div><div class="value" id="streakV">0</div></div>
+    <div class="stat"><div class="label">残り</div><div class="value" id="remainV">-</div></div>
+    <button class="btn ghost" id="menuBtn" style="display:none">メニュー</button>
+  </div>
+  <div id="stage">
+    <div id="content">
+      <!-- Typing panel (stages 1, 2) -->
+      <div class="typing-panel" id="typingPanel">
+        <div class="symbol-big-wrap">
+          <div class="atomic-no-badge" id="atomicNo">原子番号 -</div>
+          <div class="symbol-big" id="symbolBig">?</div>
+        </div>
+        <div class="typing-input">
+          <input id="typingInput" type="text" placeholder="日本語名をタイプ" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <button class="btn green" id="typingSubmit">答える</button>
+        </div>
+      </div>
+
+      <!-- Match panel (stage 3) -->
+      <div class="match-panel" id="matchPanel">
+        <div class="match-q" id="matchQ">?</div>
+        <div class="match-options" id="matchOptions"></div>
+      </div>
+
+      <!-- Builder panel (stages 4, 5) -->
+      <div class="builder-panel" id="builderPanel">
+        <div class="builder-q" id="builderQ">?<small>化学式で書いてね</small></div>
+        <div class="builder-display empty" id="builderDisplay">タップして式を組み立てよう</div>
+        <div class="builder-kbd" id="builderKbd"></div>
+      </div>
+
+      <!-- Periodic table panel (stage 6) -->
+      <div class="ptable-panel" id="ptablePanel">
+        <div class="ptable-q" id="ptableQ">?</div>
+        <div class="ptable-wrap">
+          <div class="ptable" id="ptable"></div>
+        </div>
+        <div class="ptable-mode-toggle">
+          <div class="toggle-mode on" id="modeTest">テスト範囲30要素</div>
+          <div class="toggle-mode locked" id="modeAll">全118要素</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" class="overlay"></div>
+
+<script>
+const ELEMENTS = [[1,"H","水素","水素",1,1,"nonmetal"],[2,"He","ヘリウム","",1,18,"noble"],[3,"Li","リチウム","",2,1,"alkali"],[4,"Be","ベリリウム","",2,2,"alkaline"],[5,"B","ホウ素","硼素",2,13,"metalloid"],[6,"C","炭素","炭素",2,14,"nonmetal"],[7,"N","窒素","窒素",2,15,"nonmetal"],[8,"O","酸素","酸素",2,16,"nonmetal"],[9,"F","フッ素","弗素",2,17,"halogen"],[10,"Ne","ネオン","",2,18,"noble"],[11,"Na","ナトリウム","",3,1,"alkali"],[12,"Mg","マグネシウム","",3,2,"alkaline"],[13,"Al","アルミニウム","",3,13,"post-transition"],[14,"Si","ケイ素","珪素",3,14,"metalloid"],[15,"P","リン","燐",3,15,"nonmetal"],[16,"S","硫黄","硫黄",3,16,"nonmetal"],[17,"Cl","塩素","塩素",3,17,"halogen"],[18,"Ar","アルゴン","",3,18,"noble"],[19,"K","カリウム","",4,1,"alkali"],[20,"Ca","カルシウム","",4,2,"alkaline"],[21,"Sc","スカンジウム","",4,3,"transition"],[22,"Ti","チタン","",4,4,"transition"],[23,"V","バナジウム","",4,5,"transition"],[24,"Cr","クロム","",4,6,"transition"],[25,"Mn","マンガン","",4,7,"transition"],[26,"Fe","鉄","鉄",4,8,"transition"],[27,"Co","コバルト","",4,9,"transition"],[28,"Ni","ニッケル","",4,10,"transition"],[29,"Cu","銅","銅",4,11,"transition"],[30,"Zn","亜鉛","亜鉛",4,12,"transition"],[31,"Ga","ガリウム","",4,13,"post-transition"],[32,"Ge","ゲルマニウム","",4,14,"metalloid"],[33,"As","ヒ素","砒素",4,15,"metalloid"],[34,"Se","セレン","",4,16,"nonmetal"],[35,"Br","臭素","臭素",4,17,"halogen"],[36,"Kr","クリプトン","",4,18,"noble"],[37,"Rb","ルビジウム","",5,1,"alkali"],[38,"Sr","ストロンチウム","",5,2,"alkaline"],[39,"Y","イットリウム","",5,3,"transition"],[40,"Zr","ジルコニウム","",5,4,"transition"],[41,"Nb","ニオブ","",5,5,"transition"],[42,"Mo","モリブデン","",5,6,"transition"],[43,"Tc","テクネチウム","",5,7,"transition"],[44,"Ru","ルテニウム","",5,8,"transition"],[45,"Rh","ロジウム","",5,9,"transition"],[46,"Pd","パラジウム","",5,10,"transition"],[47,"Ag","銀","銀",5,11,"transition"],[48,"Cd","カドミウム","",5,12,"transition"],[49,"In","インジウム","",5,13,"post-transition"],[50,"Sn","スズ","錫",5,14,"post-transition"],[51,"Sb","アンチモン","",5,15,"metalloid"],[52,"Te","テルル","",5,16,"metalloid"],[53,"I","ヨウ素","沃素",5,17,"halogen"],[54,"Xe","キセノン","",5,18,"noble"],[55,"Cs","セシウム","",6,1,"alkali"],[56,"Ba","バリウム","",6,2,"alkaline"],[57,"La","ランタン","",6,3,"lanthanide"],[58,"Ce","セリウム","",6,3,"lanthanide"],[59,"Pr","プラセオジム","",6,3,"lanthanide"],[60,"Nd","ネオジム","",6,3,"lanthanide"],[61,"Pm","プロメチウム","",6,3,"lanthanide"],[62,"Sm","サマリウム","",6,3,"lanthanide"],[63,"Eu","ユウロピウム","",6,3,"lanthanide"],[64,"Gd","ガドリニウム","",6,3,"lanthanide"],[65,"Tb","テルビウム","",6,3,"lanthanide"],[66,"Dy","ジスプロシウム","",6,3,"lanthanide"],[67,"Ho","ホルミウム","",6,3,"lanthanide"],[68,"Er","エルビウム","",6,3,"lanthanide"],[69,"Tm","ツリウム","",6,3,"lanthanide"],[70,"Yb","イッテルビウム","",6,3,"lanthanide"],[71,"Lu","ルテチウム","",6,3,"lanthanide"],[72,"Hf","ハフニウム","",6,4,"transition"],[73,"Ta","タンタル","",6,5,"transition"],[74,"W","タングステン","",6,6,"transition"],[75,"Re","レニウム","",6,7,"transition"],[76,"Os","オスミウム","",6,8,"transition"],[77,"Ir","イリジウム","",6,9,"transition"],[78,"Pt","白金","白金",6,10,"transition"],[79,"Au","金","金",6,11,"transition"],[80,"Hg","水銀","水銀",6,12,"transition"],[81,"Tl","タリウム","",6,13,"post-transition"],[82,"Pb","鉛","鉛",6,14,"post-transition"],[83,"Bi","ビスマス","",6,15,"post-transition"],[84,"Po","ポロニウム","",6,16,"metalloid"],[85,"At","アスタチン","",6,17,"halogen"],[86,"Rn","ラドン","",6,18,"noble"],[87,"Fr","フランシウム","",7,1,"alkali"],[88,"Ra","ラジウム","",7,2,"alkaline"],[89,"Ac","アクチニウム","",7,3,"actinide"],[90,"Th","トリウム","",7,3,"actinide"],[91,"Pa","プロトアクチニウム","",7,3,"actinide"],[92,"U","ウラン","",7,3,"actinide"],[93,"Np","ネプツニウム","",7,3,"actinide"],[94,"Pu","プルトニウム","",7,3,"actinide"],[95,"Am","アメリシウム","",7,3,"actinide"],[96,"Cm","キュリウム","",7,3,"actinide"],[97,"Bk","バークリウム","",7,3,"actinide"],[98,"Cf","カリホルニウム","",7,3,"actinide"],[99,"Es","アインスタイニウム","",7,3,"actinide"],[100,"Fm","フェルミウム","",7,3,"actinide"],[101,"Md","メンデレビウム","",7,3,"actinide"],[102,"No","ノーベリウム","",7,3,"actinide"],[103,"Lr","ローレンシウム","",7,3,"actinide"],[104,"Rf","ラザホージウム","",7,4,"transition"],[105,"Db","ドブニウム","",7,5,"transition"],[106,"Sg","シーボーギウム","",7,6,"transition"],[107,"Bh","ボーリウム","",7,7,"transition"],[108,"Hs","ハッシウム","",7,8,"transition"],[109,"Mt","マイトネリウム","",7,9,"unknown"],[110,"Ds","ダームスタチウム","",7,10,"unknown"],[111,"Rg","レントゲニウム","",7,11,"unknown"],[112,"Cn","コペルニシウム","",7,12,"transition"],[113,"Nh","ニホニウム","",7,13,"unknown"],[114,"Fl","フレロビウム","",7,14,"unknown"],[115,"Mc","モスコビウム","",7,15,"unknown"],[116,"Lv","リバモリウム","",7,16,"unknown"],[117,"Ts","テネシン","",7,17,"unknown"],[118,"Og","オガネソン","",7,18,"unknown"]];
+const COMPOUNDS = [{"name":"水","formula":"H2O","aliases":["みず","H2O"],"type":"molecular"},{"name":"二酸化炭素","formula":"CO2","aliases":["にさんかたんそ","CO2"],"type":"molecular"},{"name":"一酸化炭素","formula":"CO","aliases":["いっさんかたんそ","CO"],"type":"molecular"},{"name":"アンモニア","formula":"NH3","aliases":["NH3"],"type":"molecular"},{"name":"メタン","formula":"CH4","aliases":["CH4"],"type":"molecular"},{"name":"塩化水素","formula":"HCl","aliases":["えんかすいそ","塩酸","HCl"],"type":"molecular"},{"name":"硫化水素","formula":"H2S","aliases":["りゅうかすいそ","H2S"],"type":"molecular"},{"name":"プロパン","formula":"C3H8","aliases":["C3H8"],"type":"molecular"},{"name":"ブドウ糖","formula":"C6H12O6","aliases":["ぶどうとう","グルコース","C6H12O6"],"type":"molecular"},{"name":"エタノール","formula":"C2H6O","aliases":["えたのーる","C2H6O","C2H5OH"],"type":"molecular"},{"name":"塩化ナトリウム","formula":"NaCl","aliases":["えんかなとりうむ","食塩","しょくえん","NaCl"],"type":"ionic"},{"name":"水酸化ナトリウム","formula":"NaOH","aliases":["すいさんかなとりうむ","NaOH"],"type":"ionic"},{"name":"炭酸ナトリウム","formula":"Na2CO3","aliases":["たんさんなとりうむ","Na2CO3"],"type":"ionic"},{"name":"炭酸水素ナトリウム","formula":"NaHCO3","aliases":["たんさんすいそなとりうむ","重曹","じゅうそう","NaHCO3"],"type":"ionic"},{"name":"塩化カルシウム","formula":"CaCl2","aliases":["えんかかるしうむ","CaCl2"],"type":"ionic"},{"name":"水酸化カルシウム","formula":"Ca(OH)2","aliases":["すいさんかかるしうむ","消石灰","しょうせっかい","Ca(OH)2"],"type":"ionic"},{"name":"炭酸カルシウム","formula":"CaCO3","aliases":["たんさんかるしうむ","CaCO3"],"type":"ionic"},{"name":"硫化鉄","formula":"FeS","aliases":["りゅうかてつ","FeS"],"type":"ionic"},{"name":"塩化銅","formula":"CuCl2","aliases":["えんかどう","CuCl2"],"type":"ionic"},{"name":"酸化銅","formula":"CuO","aliases":["さんかどう","CuO"],"type":"ionic"},{"name":"酸化マグネシウム","formula":"MgO","aliases":["さんかまぐねしうむ","MgO"],"type":"ionic"},{"name":"酸化銀","formula":"Ag2O","aliases":["さんかぎん","Ag2O"],"type":"ionic"}];
+
+// ===== SOUND =====
+const Sound = (() => {
+  let ctx=null, enabled=true;
+  function init(){
+    if(!ctx){ try{ ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+    if(ctx && ctx.state === 'suspended'){ try{ ctx.resume(); }catch(e){} }
+  }
+  function tone(freq, dur=0.12, type='sine', vol=0.18){
+    if(!enabled) return; init(); if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+dur);
+  }
+  return {
+    init,
+    correct(){ tone(880,0.09,'triangle'); setTimeout(()=>tone(1320,0.12,'triangle'),60); },
+    wrong(){ tone(220,0.18,'sawtooth',0.14); },
+    combo(n){ tone(880+n*60,0.08,'square',0.12); },
+    levelup(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.14,'triangle',0.16),i*90)); },
+    pop(){ tone(700,0.05,'square',0.1); },
+    tick(){ tone(1500,0.04,'square',0.06); },
+    toggle(){ enabled = !enabled; return enabled; },
+    get enabled(){ return enabled; }
+  };
+})();
+['touchstart','mousedown','keydown','click'].forEach(evt =>
+  document.addEventListener(evt, ()=>Sound.init(), {passive:true, capture:true})
+);
+
+// ===== STORAGE =====
+const STORE_KEY = 'haru_element_lab_v1';
+const Store = {
+  load(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY))||{}; }catch(e){ return {}; } },
+  save(s){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch(e){} },
+  get(){ return Object.assign({stages:{}, best:{}, sound:true, totalPlay:0, unlocked:{}}, this.load()); },
+  set(patch){ const s = this.get(); Object.assign(s, patch); this.save(s); return s; }
+};
+
+// ===== NORMALIZATION =====
+function normalize(s){
+  if(!s) return '';
+  s = s.toString().trim();
+  s = s.replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+  s = s.toUpperCase();
+  s = s.replace(/[\s・\-ー‐−（）]+/g, '');
+  return s;
+}
+
+// ===== ELEMENT HELPERS =====
+const E_BY_SYMBOL = {};
+const E_BY_NUM = {};
+ELEMENTS.forEach(e => {
+  const [num,sym,nameKana,nameKanji,period,group,cat] = e;
+  const obj = {num, sym, nameKana, nameKanji, period, group, cat};
+  E_BY_SYMBOL[sym] = obj;
+  E_BY_NUM[num] = obj;
+});
+
+// Test scope (PDF) — 29 elements
+const METAL_TEST = ['Na','K','Mg','Ca','Ba','Al','Sn','Pb','Zn','Fe','Cu','Ag','Au','Pt','Hg'];
+const NONMETAL_TEST = ['H','He','C','N','O','F','Ne','Si','P','S','Cl','Ar','Br','I'];
+const TEST_SCOPE_SYMS = new Set([...METAL_TEST, ...NONMETAL_TEST]);
+
+// Accepted answers for an element (Japanese name typing)
+function acceptedAnswersForElement(sym){
+  const e = E_BY_SYMBOL[sym];
+  const answers = [e.nameKana];
+  if(e.nameKanji) answers.push(e.nameKanji);
+  // hiragana also accepted (normalize converts hira→kata)
+  answers.push(sym);
+  return answers;
+}
+
+// ===== STAGES =====
+const STAGES = [
+  { id:'s1', name:'金属元素マスター', icon:'🥇',
+    desc:'15個の金属元素を見て名前をタイプ',
+    mode:'typing', items: METAL_TEST.map(sym=>({sym})) },
+  { id:'s2', name:'非金属元素マスター', icon:'🥈',
+    desc:'14個の非金属元素を見て名前をタイプ',
+    mode:'typing', items: NONMETAL_TEST.map(sym=>({sym})) },
+  { id:'s3', name:'化合物⇄名前マッチ', icon:'🔀',
+    desc:'化学式から名前、または名前から化学式を4択で選ぶ',
+    mode:'match', items: null /* built from compounds at runtime */ },
+  { id:'s4', name:'化学式ビルダー〈分子編〉', icon:'🧪',
+    desc:'水・CO₂・アンモニアなど分子化合物 10個',
+    mode:'builder', items: null /* molecular */ },
+  { id:'s5', name:'化学式ビルダー〈イオン編〉', icon:'🧂',
+    desc:'塩化ナトリウム・水酸化カルシウムなど 12個',
+    mode:'builder', items: null /* ionic */ },
+  { id:'s6', name:'周期表アタック', icon:'🗺️',
+    desc:'元素名 or 記号から周期表のセルを当てる！',
+    mode:'ptable', items: null /* test or all */ },
+  { id:'boss', name:'BOSS 元素総ざらい', icon:'👑',
+    desc:'全70+問！すべてのモード混合',
+    mode:'mixed', boss:true },
+];
+
+function buildMatchItems(){
+  // 50% formula→name, 50% name→formula
+  const items = [];
+  COMPOUNDS.forEach(c => {
+    items.push({mode:'match', dir:'f2n', name:c.name, formula:c.formula, correct:c.name});
+    items.push({mode:'match', dir:'n2f', name:c.name, formula:c.formula, correct:c.formula});
+  });
+  // shuffle and trim a bit
+  return shuffle(items).slice(0, 25);
+}
+
+function buildBuilderItems(typeFilter){
+  return COMPOUNDS.filter(c => c.type === typeFilter).map(c => ({mode:'builder', name:c.name, formula:c.formula}));
+}
+
+function buildPTableItems(syms){
+  return syms.map(sym => ({mode:'ptable', sym}));
+}
+
+function buildBossItems(){
+  const arr = [];
+  arr.push(...METAL_TEST.map(sym=>({mode:'typing', sym})));
+  arr.push(...NONMETAL_TEST.map(sym=>({mode:'typing', sym})));
+  arr.push(...buildMatchItems().slice(0, 15));
+  arr.push(...buildBuilderItems('molecular'));
+  arr.push(...buildBuilderItems('ionic'));
+  arr.push(...buildPTableItems([...METAL_TEST, ...NONMETAL_TEST]));
+  return arr;
+}
+
+// ===== STATE =====
+const state = {
+  mode: null, stageId: null, queue: [], total: 0,
+  score: 0, streak: 0, maxStreak: 0,
+  current: null, startedAt: 0, elapsed: 0, timerRAF: null,
+  mistakes: 0, hintUsed: false,
+  builderText: '',
+  ptableScope: 'test',
+};
+
+// ===== UTIL =====
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function $(id){ return document.getElementById(id); }
+function showPanel(id){
+  ['typingPanel','matchPanel','builderPanel','ptablePanel'].forEach(p => $(p).classList.toggle('on', p===id));
+}
+
+// ===== PERIODIC TABLE RENDER =====
+function renderPTable(highlightScope){
+  const ptable = $('ptable');
+  ptable.innerHTML = '';
+  // 9 rows × 18 cols. Row 1-7 standard. Row 8-9 for La/Ac series below.
+  // Construct cells: build mapping (period, group) → element
+  const cells = {};
+  ELEMENTS.forEach(e => {
+    const [num,sym,nameKana,nameKanji,period,group,cat] = e;
+    let row = period, col = group;
+    if(cat === 'lanthanide'){
+      // Period 6, group 3 split. We place them in row 8.
+      // La=57 → col 3 row 8, Ce=58 → col 4 row 8, ..., Lu=71 → col 17 row 8
+      row = 8; col = 3 + (num - 57);
+    } else if(cat === 'actinide'){
+      row = 9; col = 3 + (num - 89);
+    }
+    if(period === 6 && num === 57) {
+      // also leave row 6 col 3 as placeholder pointer
+    }
+    cells[row+'_'+col] = e;
+  });
+  // Add a placeholder marker at row 6 col 3 and row 7 col 3 pointing to La/Ac
+  // Build grid as 9 rows × 18 cols
+  for(let r=1; r<=9; r++){
+    for(let c=1; c<=18; c++){
+      const e = cells[r+'_'+c];
+      const cell = document.createElement('div');
+      cell.className = 'pcell';
+      if(e){
+        const [num,sym,nameKana,nameKanji,period,group,cat] = e;
+        cell.classList.add('has-el', cat);
+        cell.dataset.sym = sym;
+        const inScope = TEST_SCOPE_SYMS.has(sym);
+        if(inScope) cell.classList.add('in-scope');
+        cell.innerHTML = `<div class="num">${num}</div><div class="sym">${sym}</div>`;
+        cell.addEventListener('click', (ev) => onPCellTap(sym, cell, ev));
+        cell.addEventListener('touchstart', (ev) => { ev.preventDefault(); cell.classList.add('pressing'); Sound.init(); }, {passive:false});
+        cell.addEventListener('touchend', (ev) => { ev.preventDefault(); cell.classList.remove('pressing'); onPCellTap(sym, cell, ev); }, {passive:false});
+        cell.addEventListener('touchcancel', () => cell.classList.remove('pressing'));
+      } else if(r === 6 && c === 3){
+        cell.classList.add('lanthanide');
+        cell.innerHTML = '<div class="sym" style="font-size:12px">57-71</div>';
+      } else if(r === 7 && c === 3){
+        cell.classList.add('actinide');
+        cell.innerHTML = '<div class="sym" style="font-size:12px">89-103</div>';
+      } else if(r === 8 && c === 1){
+        cell.classList.add('ptable-label');
+        cell.innerHTML = 'Ln';
+      } else if(r === 9 && c === 1){
+        cell.classList.add('ptable-label');
+        cell.innerHTML = 'An';
+      }
+      ptable.appendChild(cell);
+    }
+  }
+}
+
+function onPCellTap(sym, cell, ev){
+  if(!state.current) return;
+  if(state.current.mode === 'ptable'){
+    if(state.current.sym === sym){
+      cell.classList.add('correct');
+      setTimeout(()=>{ cell.classList.remove('correct'); cell.classList.add('solved'); }, 350);
+      correctAnswer(cell);
+    } else {
+      cell.classList.add('wrong');
+      setTimeout(()=>cell.classList.remove('wrong'), 400);
+      wrongAnswer(cell);
+    }
+  }
+}
+
+// ===== BUILDER KEYBOARD =====
+function renderBuilderKbd(stageId){
+  const kbd = $('builderKbd');
+  kbd.innerHTML = '';
+  // Determine relevant elements based on stage's compounds
+  const compounds = (stageId === 's5') ? COMPOUNDS.filter(c=>c.type==='ionic')
+                  : (stageId === 's4') ? COMPOUNDS.filter(c=>c.type==='molecular')
+                  : COMPOUNDS;
+  const symbolsUsed = new Set();
+  compounds.forEach(c => {
+    const f = c.formula;
+    let m = f.matchAll(/[A-Z][a-z]?/g);
+    for(const x of m) symbolsUsed.add(x[0]);
+  });
+  // Standard order
+  const ORDER = ['H','C','N','O','Na','Mg','Al','Si','S','Cl','K','Ca','Fe','Cu','Ag','Zn','Pb','Sn','Au','Hg','He','Ne','Ar','F','P','Br','I','Ba','Pt'];
+  const buttons = ORDER.filter(s => symbolsUsed.has(s));
+  // If something missing, append
+  symbolsUsed.forEach(s => { if(!buttons.includes(s)) buttons.push(s); });
+
+  buttons.forEach(sym => {
+    const b = makeKbdBtn(sym, 'sym');
+    b.addEventListener('click', () => addToBuilder(sym));
+    kbd.appendChild(b);
+  });
+  // Digits 2,3,4,5,6,8 are most useful; 0-9 for safety
+  ['2','3','4','5','6','7','8','9','0','1'].forEach(d => {
+    const b = makeKbdBtn(d, 'digit');
+    b.addEventListener('click', () => addToBuilder(d));
+    kbd.appendChild(b);
+  });
+  // Parentheses
+  const lp = makeKbdBtn('(', 'paren');
+  lp.addEventListener('click', () => addToBuilder('('));
+  kbd.appendChild(lp);
+  const rp = makeKbdBtn(')', 'paren');
+  rp.addEventListener('click', () => addToBuilder(')'));
+  kbd.appendChild(rp);
+  // Backspace
+  const bs = makeKbdBtn('⌫消去', 'bs');
+  bs.addEventListener('click', () => {
+    state.builderText = state.builderText.slice(0,-1);
+    updateBuilderDisplay();
+  });
+  kbd.appendChild(bs);
+  // Clear
+  const clr = makeKbdBtn('全消去', 'clear');
+  clr.addEventListener('click', () => {
+    state.builderText = '';
+    updateBuilderDisplay();
+  });
+  kbd.appendChild(clr);
+  // Submit
+  const submit = makeKbdBtn('答える ▶', 'submit');
+  submit.addEventListener('click', submitBuilder);
+  kbd.appendChild(submit);
+}
+
+function makeKbdBtn(label, kind){
+  const b = document.createElement('div');
+  b.className = 'kbd-btn ' + kind;
+  b.textContent = label;
+  // Press visual
+  let pressing = false;
+  b.addEventListener('touchstart', e => { e.preventDefault(); pressing = true; b.style.background = 'rgba(255,255,255,0.2)'; Sound.init(); }, {passive:false});
+  b.addEventListener('touchend', e => {
+    e.preventDefault();
+    if(pressing){ b.click(); }
+    pressing = false;
+    b.style.background = '';
+  }, {passive:false});
+  return b;
+}
+
+function addToBuilder(token){
+  state.builderText += token;
+  updateBuilderDisplay();
+  Sound.pop();
+}
+
+function updateBuilderDisplay(){
+  const d = $('builderDisplay');
+  const t = state.builderText;
+  if(!t){ d.classList.add('empty'); d.textContent = 'タップして式を組み立てよう'; return; }
+  d.classList.remove('empty');
+  d.innerHTML = formatFormula(t);
+}
+
+function formatFormula(s){
+  // Format digits after letter or ) as subscript
+  let out = '';
+  for(let i=0; i<s.length; i++){
+    const ch = s[i];
+    if(/[0-9]/.test(ch) && i > 0 && /[A-Za-z\)]/.test(s[i-1])){
+      out += '<span class="sub">' + ch + '</span>';
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+function submitBuilder(){
+  const c = state.current;
+  if(!c || c.mode !== 'builder') return;
+  const t = state.builderText.trim();
+  if(!t) return;
+  const norm = normalize(t);
+  const accepted = normalize(c.formula);
+  const d = $('builderDisplay');
+  if(norm === accepted){
+    d.classList.add('correct');
+    setTimeout(()=>d.classList.remove('correct'), 350);
+    correctAnswer(d);
+  } else {
+    d.classList.add('wrong');
+    setTimeout(()=>d.classList.remove('wrong'), 400);
+    wrongAnswer(d);
+  }
+}
+
+// ===== START STAGE =====
+function startStage(stageId){
+  const stage = STAGES.find(s=>s.id===stageId);
+  if(!stage) return;
+  state.mode = stage.mode || (stage.boss ? 'mixed' : 'typing');
+  state.stageId = stageId;
+
+  // Build items per stage
+  let items;
+  if(stage.id === 's3') items = buildMatchItems();
+  else if(stage.id === 's4') items = buildBuilderItems('molecular');
+  else if(stage.id === 's5') items = buildBuilderItems('ionic');
+  else if(stage.id === 's6'){
+    const syms = state.ptableScope === 'all'
+      ? ELEMENTS.map(e => e[1])
+      : [...METAL_TEST, ...NONMETAL_TEST];
+    items = buildPTableItems(syms).map(it => ({...it, mode:'ptable'}));
+  } else if(stage.id === 'boss') items = buildBossItems();
+  else items = stage.items.map(it => ({...it, mode:'typing'}));
+
+  state.queue = shuffle(items);
+  state.total = state.queue.length;
+  state.score = 0; state.streak = 0; state.maxStreak = 0; state.mistakes = 0;
+  state.elapsed = 0; state.startedAt = performance.now();
+  state.builderText = '';
+  hideOverlay();
+  resetVisual();
+  $('menuBtn').style.display = 'inline-flex';
+
+  // Render appropriate panels
+  if(stage.id === 's4' || stage.id === 's5'){
+    renderBuilderKbd(stage.id);
+  }
+  if(stage.id === 's6' || stage.id === 'boss'){
+    renderPTable();
+  }
+  // For BOSS mode also pre-build kbd with all symbols
+  if(stage.id === 'boss'){
+    renderBuilderKbd('boss');
+  }
+
+  startTimer();
+  Sound.init();
+  next();
+}
+
+function startPractice(){
+  state.mode = 'practice';
+  state.stageId = 'practice';
+  state.queue = shuffle(buildBossItems());
+  state.total = state.queue.length;
+  state.score = 0; state.streak = 0; state.maxStreak = 0; state.mistakes = 0;
+  state.elapsed = 0; state.startedAt = performance.now();
+  state.builderText = '';
+  hideOverlay();
+  resetVisual();
+  $('menuBtn').style.display = 'inline-flex';
+  renderBuilderKbd('boss');
+  renderPTable();
+  startTimer();
+  Sound.init();
+  next();
+}
+
+function startTimeAttack(){
+  state.mode = 'attack';
+  state.stageId = 'attack';
+  // All 29 element typing items
+  state.queue = shuffle([...METAL_TEST, ...NONMETAL_TEST].map(sym=>({mode:'typing', sym})));
+  state.total = state.queue.length;
+  state.score = 0; state.streak = 0; state.maxStreak = 0; state.mistakes = 0;
+  state.elapsed = 0; state.startedAt = performance.now();
+  hideOverlay();
+  resetVisual();
+  $('menuBtn').style.display = 'inline-flex';
+  startTimer();
+  Sound.init();
+  next();
+}
+
+function resetVisual(){
+  $('typingInput').value = '';
+  $('typingInput').classList.remove('wrong','correct');
+  state.builderText = '';
+  updateBuilderDisplay();
+  document.querySelectorAll('.pcell').forEach(c => c.classList.remove('target-highlight','correct','wrong','solved'));
+  document.querySelectorAll('.match-opt').forEach(o => o.classList.remove('correct','wrong'));
+}
+
+function next(){
+  if(state.queue.length === 0){ finish(); return; }
+  state.current = state.queue[0];
+  state.hintUsed = false;
+  state.builderText = '';
+  updateBuilderDisplay();
+  showCurrent();
+}
+
+function showCurrent(){
+  const c = state.current;
+  if(!c) return;
+  // Clear all panels first
+  showPanel(null);
+
+  if(c.mode === 'typing'){
+    showPanel('typingPanel');
+    const el = E_BY_SYMBOL[c.sym];
+    const big = $('symbolBig');
+    big.textContent = c.sym;
+    big.classList.toggle('metal', el && ['alkali','alkaline','transition','post-transition'].includes(el.cat));
+    $('atomicNo').textContent = '原子番号 ' + el.num;
+    const inp = $('typingInput');
+    inp.value = '';
+    inp.classList.remove('wrong','correct');
+    setTimeout(() => { try{ inp.focus(); }catch(e){} }, 80);
+    $('prompt').innerHTML = `この元素の<span class="target nonmetal">名前</span>をタイプ！`;
+  } else if(c.mode === 'match'){
+    showPanel('matchPanel');
+    const q = $('matchQ');
+    if(c.dir === 'f2n'){
+      q.innerHTML = formatFormula(c.formula);
+      $('prompt').innerHTML = `この化学式の<span class="target nonmetal">名前</span>は？`;
+    } else {
+      q.textContent = c.name;
+      $('prompt').innerHTML = `この物質の<span class="target nonmetal">化学式</span>は？`;
+    }
+    renderMatchOptions(c);
+  } else if(c.mode === 'builder'){
+    showPanel('builderPanel');
+    $('builderQ').innerHTML = `${c.name}<small>化学式で組み立てよう</small>`;
+    $('prompt').innerHTML = `<span class="target nonmetal">${c.name}</span>の化学式は？`;
+  } else if(c.mode === 'ptable'){
+    showPanel('ptablePanel');
+    const el = E_BY_SYMBOL[c.sym];
+    // 常に日本語名を表示。プレイヤーは周期表の位置（英語記号セル）をタップして答える
+    const askText = el.nameKana;
+    $('ptableQ').innerHTML = `<span class="target">${askText}</span>はどこ？`;
+    $('prompt').innerHTML = `周期表のセルをタップ！`;
+  }
+  updateHUD();
+}
+
+function renderMatchOptions(c){
+  const container = $('matchOptions');
+  container.innerHTML = '';
+  const correct = c.correct;
+  // Build 3 incorrect options from other compounds
+  const otherField = c.dir === 'f2n' ? 'name' : 'formula';
+  const others = COMPOUNDS.filter(x => x[otherField] !== correct);
+  const sampled = shuffle(others).slice(0,3).map(x => x[otherField]);
+  const options = shuffle([correct, ...sampled]);
+  options.forEach(opt => {
+    const div = document.createElement('div');
+    div.className = 'match-opt';
+    div.innerHTML = (c.dir === 'f2n') ? opt : formatFormula(opt);
+    div.addEventListener('click', () => onMatchSelect(opt, div, correct));
+    container.appendChild(div);
+  });
+}
+
+function onMatchSelect(opt, node, correct){
+  if(!state.current || state.current.mode !== 'match') return;
+  if(opt === correct){
+    node.classList.add('correct');
+    correctAnswer(node);
+  } else {
+    node.classList.add('wrong');
+    setTimeout(()=>node.classList.remove('wrong'), 400);
+    // Highlight correct option after wrong
+    document.querySelectorAll('.match-opt').forEach(o => {
+      const t = (state.current.dir === 'f2n') ? o.textContent : o.textContent;
+      if(t === correct) o.classList.add('correct');
+    });
+    wrongAnswer(node);
+  }
+}
+
+// ===== TYPING SUBMIT =====
+function submitTyping(){
+  const c = state.current;
+  if(!c || c.mode !== 'typing') return;
+  const inp = $('typingInput');
+  const val = inp.value;
+  if(!val.trim()) return;
+  const ans = normalize(val);
+  const accepted = acceptedAnswersForElement(c.sym).map(normalize);
+  if(accepted.includes(ans)){
+    inp.classList.add('correct');
+    setTimeout(()=>inp.classList.remove('correct'), 300);
+    correctAnswer(inp);
+  } else {
+    inp.classList.add('wrong');
+    setTimeout(()=>inp.classList.remove('wrong'), 400);
+    Sound.wrong();
+    state.streak = 0;
+    state.mistakes++;
+    updateHUD();
+    if(state.mistakes >= 2 && !state.hintUsed){
+      state.hintUsed = true;
+      const el = E_BY_SYMBOL[c.sym];
+      toast('💡 ヒント：' + el.nameKana.charAt(0) + '...');
+    }
+  }
+}
+
+// ===== PERIODIC TABLE TAP highlight target =====
+function highlightPTableTarget(){
+  document.querySelectorAll('.pcell.target-highlight').forEach(n => n.classList.remove('target-highlight'));
+  // We don't auto-highlight - the player must FIND the cell
+}
+
+// ===== CORRECT / WRONG =====
+function correctAnswer(visualNode){
+  const c = state.current;
+  Sound.correct();
+  state.streak++;
+  state.maxStreak = Math.max(state.streak, state.maxStreak);
+  const base = 10;
+  const bonus = Math.floor(state.streak * 2);
+  const speedBonus = state.mistakes===0 ? 5 : 0;
+  state.score += base + bonus + speedBonus;
+  if(state.streak >= 3 && state.streak % 3 === 0) Sound.combo(state.streak);
+  floatFx('+' + (base+bonus+speedBonus), 'good', visualNode);
+  state.queue.shift();
+  state.mistakes = 0;
+  setTimeout(next, 450);
+}
+
+function wrongAnswer(node){
+  Sound.wrong();
+  state.streak = 0;
+  state.mistakes++;
+  if(node){
+    node.classList.add('wrong');
+    setTimeout(()=>node.classList.remove('wrong'), 400);
+  }
+  floatFx('×', 'bad', node);
+  updateHUD();
+  if(state.mistakes >= 2 && !state.hintUsed){
+    showHintForCurrent();
+  }
+}
+
+function showHintForCurrent(){
+  state.hintUsed = true;
+  const c = state.current;
+  if(c.mode === 'typing'){
+    const el = E_BY_SYMBOL[c.sym];
+    toast('💡 「' + el.nameKana.charAt(0) + '...」で始まるよ');
+  } else if(c.mode === 'builder'){
+    toast('💡 ヒント：' + c.formula);
+  } else if(c.mode === 'ptable'){
+    const cell = document.querySelector('.pcell[data-sym="' + c.sym + '"]');
+    if(cell){
+      cell.classList.add('target-highlight');
+      setTimeout(()=>cell.classList.remove('target-highlight'), 1800);
+    }
+    toast('💡 黄色く光ったセルだよ');
+  } else if(c.mode === 'match'){
+    toast('💡 もう一度考えてみよう');
+  }
+}
+
+function updateHUD(){
+  $('scoreV').textContent = state.score;
+  $('streakV').textContent = state.streak;
+  $('remainV').textContent = state.queue.length;
+}
+
+function startTimer(){
+  cancelAnimationFrame(state.timerRAF);
+  function tick(){
+    state.elapsed = (performance.now() - state.startedAt)/1000;
+    $('timerV').textContent = state.elapsed.toFixed(1);
+    state.timerRAF = requestAnimationFrame(tick);
+  }
+  tick();
+}
+function stopTimer(){ cancelAnimationFrame(state.timerRAF); }
+
+function floatFx(text, kind, node){
+  let x = window.innerWidth/2, y = window.innerHeight/2;
+  if(node && node.getBoundingClientRect){
+    const r = node.getBoundingClientRect();
+    x = r.left + r.width/2;
+    y = r.top + r.height/2;
+  }
+  const el = document.createElement('div');
+  el.className = 'float-fx ' + kind;
+  el.textContent = text;
+  el.style.left = x+'px'; el.style.top = y+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 900);
+}
+
+function toast(msg){
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  $('app').appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+
+// ===== FINISH =====
+function finish(){
+  stopTimer();
+  state.current = null;
+  showPanel(null);
+  $('prompt').textContent = 'クリア！🎉';
+  const time = state.elapsed;
+  const stars = computeStars(time);
+  const s = Store.get();
+  const key = state.stageId;
+  let newBest = false;
+  if(state.mode !== 'practice'){
+    if(!s.best[key] || time < s.best[key]) { s.best[key] = time; newBest = true; }
+    if(!s.stages[key] || stars > s.stages[key]) s.stages[key] = stars;
+    s.totalPlay = (s.totalPlay||0)+1;
+    // Unlock full periodic table if s6 ★3 cleared on test scope
+    if(key === 's6' && stars >= 3 && state.ptableScope === 'test') s.unlocked.ptable_all = true;
+    Store.save(s);
+  }
+  Sound.levelup();
+  showResult({time, score:state.score, maxStreak:state.maxStreak, stars, newBest});
+}
+
+function computeStars(time){
+  const perItem = time / Math.max(1, state.total);
+  // Modes have different ideal speeds
+  const t3 = 5, t2 = 9;
+  if(perItem < t3) return 3;
+  if(perItem < t2) return 2;
+  return 1;
+}
+
+function hideOverlay(){ $('overlay').style.display='none'; }
+function showOverlay(html){
+  const ov = $('overlay');
+  ov.innerHTML = html;
+  ov.style.display = 'flex';
+}
+
+function showMenu(){
+  stopTimer();
+  state.current = null;
+  showPanel(null);
+  $('prompt').textContent = 'モードを選んでね';
+  $('menuBtn').style.display = 'none';
+  $('timerV').textContent = '0.0';
+  $('scoreV').textContent = '0';
+  $('streakV').textContent = '0';
+  $('remainV').textContent = '-';
+  const s = Store.get();
+  const card = (st) => {
+    const stars = s.stages[st.id] || 0;
+    const best = s.best[st.id];
+    const starsHtml = '<span style="color:#ffd64d;font-size:16px">' + '★'.repeat(stars) + '<span style="opacity:.25">'+'★'.repeat(3-stars)+'</span></span>';
+    const bestHtml = best ? `<div class="meta">ベスト ${best.toFixed(1)}秒　${starsHtml}</div>` : `<div class="meta">${starsHtml}</div>`;
+    return `<div class="menu-card ${stars===3?'cleared':''}" data-stage="${st.id}">
+      <div><div class="ico">${st.icon}</div><div class="name">${st.name}</div><div class="desc">${st.desc}</div></div>
+      ${bestHtml}
+    </div>`;
+  };
+  const stageCards = STAGES.slice(0,6).map(card).join('');
+  const bossCard = card(STAGES[6]);
+  const attackBest = s.best['attack'];
+  const attackCard = `<div class="menu-card ${attackBest&&attackBest<60?'cleared':''}" data-mode="attack">
+    <div><div class="ico">⚡</div><div class="name">タイムアタック 元素29</div><div class="desc">29個の元素をひたすら速く！</div></div>
+    <div class="meta">${attackBest ? `ベスト ${attackBest.toFixed(1)}秒` : 'ベスト未記録'}</div>
+  </div>`;
+  const practiceCard = `<div class="menu-card" data-mode="practice">
+    <div><div class="ico">🧠</div><div class="name">練習モード</div><div class="desc">スコアなし。全70+問をのんびり</div></div>
+    <div class="meta">プレイ回数 ${s.totalPlay||0}</div>
+  </div>`;
+  showOverlay(`
+    <h1>⚗️ 日元の元素ラボ</h1>
+    <p>城北中2・化学 春期課題＋中間テスト範囲<br>金属15・非金属14・化合物22・周期表まで！</p>
+    <div class="menu-section-title">▶ 基礎ステージ</div>
+    <div class="menu-grid">${stageCards}</div>
+    <div class="menu-section-title">▶ BOSS</div>
+    <div class="menu-grid">${bossCard}${attackCard}</div>
+    <div class="menu-section-title">▶ サイドモード</div>
+    <div class="menu-grid">${practiceCard}</div>
+    <div class="settings">
+      <div class="toggle ${Sound.enabled?'':'off'}" id="soundT"><span class="dot"></span>サウンド</div>
+      <div class="toggle" id="resetT" style="background:rgba(255,90,115,0.2)">記録をリセット</div>
+    </div>
+  `);
+  document.querySelectorAll('.menu-card[data-stage]').forEach(el => {
+    el.addEventListener('click', () => { Sound.init(); startStage(el.dataset.stage); });
+  });
+  document.querySelectorAll('.menu-card[data-mode="attack"]').forEach(el => el.addEventListener('click', () => { Sound.init(); startTimeAttack(); }));
+  document.querySelectorAll('.menu-card[data-mode="practice"]').forEach(el => el.addEventListener('click', () => { Sound.init(); startPractice(); }));
+  $('soundT').addEventListener('click', e => {
+    const on = Sound.toggle();
+    e.currentTarget.classList.toggle('off', !on);
+    if(on) Sound.tick();
+  });
+  $('resetT').addEventListener('click', () => {
+    if(confirm('ベストタイムや★を全部消してもいい？')){
+      localStorage.removeItem(STORE_KEY);
+      showMenu();
+    }
+  });
+}
+
+function showResult({time, score, maxStreak, stars, newBest}){
+  const stage = STAGES.find(s=>s.id===state.stageId);
+  const stageName = stage?.name || (state.mode==='attack'?'タイムアタック':'練習');
+  const starsHtml = '<span>' + '★'.repeat(stars) + '<span class="dim">'+'★'.repeat(3-stars)+'</span></span>';
+  const unlockMsg = (state.stageId === 's6' && stars >= 3 && state.ptableScope === 'test')
+    ? '<div class="new-best">🔓 全118要素モード解放！</div>' : '';
+  showOverlay(`
+    <h1>クリア！</h1>
+    <h2>${stageName}</h2>
+    <div class="stars">${starsHtml}</div>
+    ${unlockMsg}
+    <div class="result-stats">
+      <div class="stat-box"><div class="label">タイム</div><div class="value gold">${time.toFixed(1)}<span style="font-size:18px">秒</span></div>${newBest?'<div class="new-best">🏆 ベスト更新！</div>':''}</div>
+      <div class="stat-box"><div class="label">スコア</div><div class="value">${score}</div></div>
+      <div class="stat-box"><div class="label">最大コンボ</div><div class="value">${maxStreak}</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="againBtn">もう一回</button>
+      <button class="btn ghost" id="menuBtn2">メニューへ</button>
+    </div>
+  `);
+  $('againBtn').addEventListener('click', () => {
+    if(state.mode==='attack') startTimeAttack();
+    else if(state.mode==='practice') startPractice();
+    else startStage(state.stageId);
+  });
+  $('menuBtn2').addEventListener('click', showMenu);
+}
+
+// ===== EVENTS =====
+$('menuBtn').addEventListener('click', () => {
+  if(confirm('メニューに戻る？（途中のスコアは保存されません）')) showMenu();
+});
+$('typingSubmit').addEventListener('click', submitTyping);
+$('typingInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){ e.preventDefault(); submitTyping(); }
+});
+$('modeTest').addEventListener('click', () => {
+  state.ptableScope = 'test';
+  $('modeTest').classList.add('on');
+  $('modeAll').classList.remove('on');
+});
+$('modeAll').addEventListener('click', () => {
+  const s = Store.get();
+  if(!s.unlocked.ptable_all){
+    toast('🔒 周期表アタックを★3つでクリアして解放！');
+    return;
+  }
+  state.ptableScope = 'all';
+  $('modeAll').classList.add('on');
+  $('modeTest').classList.remove('on');
+});
+
+// Update ptable mode toggle based on unlock
+function updatePtableUnlock(){
+  const s = Store.get();
+  if(s.unlocked.ptable_all){
+    $('modeAll').classList.remove('locked');
+  }
+}
+
+// Init
+renderPTable();
+updatePtableUnlock();
+showMenu();
+</script>
+</body>
+</html>
